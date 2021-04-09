@@ -7,15 +7,23 @@
 
 using namespace std;
 
+#define WIDTH 1920.0
+#define HEIGHT 1080.0
+#define TABLE_HEIGHT 400.0
+#define TABLE_GAP 200.0
 #define LUNGIME 100.0
 #define LATIME 20.0
-#define TABLE_HEIGHT 200.0
 #define PI 3.141592654
 
 struct punct
 {
 	double x;
 	double y;
+	punct()
+	{
+		x = 0.0;
+		y = 0.0;
+	}
 } P1, P2, P3, P4, P5, P6, P7, P8;
 
 struct domino
@@ -23,19 +31,44 @@ struct domino
 	punct cord;
 	double ung = 0.0;
 	bool angr = 0;
-};
-
-bool dir = 1; //dreapta daca e 1, stanga daca e 0
-int selected = -1; //-1 cand nu e selectat, pozitia cand e selectat
+} *lista_drept, * lista_aux;
 
 GLuint unit;
-domino* lista_drept;
-double alpha = 1.0, rung = 40;
+double rung = 70;
+double fall = 100;
 double err = 0.00001;
 double deltatime;
 double oldtime = 0.0;
+double message_duration = 2.0;
+double message1_time = -2.1;
+double message2_time = -2.1;
+double message3_time = -2.1;
+double message4_time = -2.1;
+double message5_time = -2.1;
 
-int nrdominos = 4;
+int nrdominos = 0;
+
+bool darkmode = 1;
+bool started = 0;
+bool dir = 1; //dreapta daca e 1, stanga daca e 0
+int selected = -1; //-1 cand nu e selectat, pozitia cand e selectat
+
+void glPrintf(int x, int y, char* sir, int lungime) {
+	if (darkmode) glColor3f(1.0, 1.0, 1.0);
+	else glColor3f(0.0, 0.0, 0.0);
+	for (int i = 0; i < lungime; i++) {
+		glRasterPos2i(10 + x + i * 10, y - 20);
+		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, sir[i]);
+	}
+}
+
+void glPrintfErr(int x, int y, char* sir, int lungime) {
+	glColor3f(1.0, 0.0, 0.0);
+	for (int i = 0; i < lungime; i++) {
+		glRasterPos2i(x + i * 15, y);
+		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, sir[i]);
+	}
+}
 
 double arie(punct A, punct B, punct C)
 {
@@ -49,18 +82,10 @@ bool suprapunere(punct A, punct B, punct C, punct D, punct M)
 	return 0;
 }
 
-int comp(const void* a, const void* b)
-{
-	domino* A = (domino*)a;
-	domino* B = (domino*)b;
-	return A->cord.x - B->cord.x;
-}
-
 static void init(void)
 {
-	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glMatrixMode(GL_PROJECTION);
-	glOrtho(0.0, 800.0, 0.0, 600.0, -1.0, 1.0);
+	glOrtho(0.0, WIDTH, 0.0, HEIGHT, -1.0, 1.0);
 
 	//piesa unitate
 	unit = glGenLists(1);
@@ -74,13 +99,22 @@ static void init(void)
 	glEndList();
 }
 
-bool ok = 1;
-
 void update(void)
 {
+
 	double t = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
 	deltatime = t - oldtime;
 	oldtime = t;
+
+	for (int i = 0; i < nrdominos; i++)
+	{
+		if (lista_drept[i].cord.y > TABLE_HEIGHT)
+		{
+			lista_drept[i].cord.y -= fall * deltatime;
+		}
+		if (lista_drept[i].cord.y < TABLE_HEIGHT) lista_drept[i].cord.y = TABLE_HEIGHT;
+	}
+
 	if (dir)
 	{
 		for (int i = 0; i < nrdominos; i++)
@@ -89,6 +123,7 @@ void update(void)
 			{
 				lista_drept[i].ung += rung * deltatime;
 			}
+			if (lista_drept[i].ung > 90.0) lista_drept[i].ung = 90.0;
 
 			if (i != nrdominos - 1)
 			{
@@ -168,16 +203,65 @@ void deseneaza(void)
 {
 	glClear(GL_COLOR_BUFFER_BIT);
 
+	if (darkmode) glClearColor(0.0, 0.0, 0.0, 0.0);
+	else glClearColor(1.0, 0.85, 0.73, 0.0);
+
+	//legenda
+	char sp[250];
+	sprintf_s(sp, "%s", "LEGENDA:");
+	glPrintf(0, HEIGHT, sp, strlen(sp));
+	sprintf_s(sp, "%s", "F - Fisier Double Domino");
+	glPrintf(0, HEIGHT - 20, sp, strlen(sp));
+	sprintf_s(sp, "%s", "R - Reset");
+	glPrintf(0, HEIGHT - 40, sp, strlen(sp));
+	sprintf_s(sp, "%s", "Click Stanga - Adaugare domino");
+	glPrintf(0, HEIGHT - 60, sp, strlen(sp));
+	sprintf_s(sp, "%s", "Click Dreapta - Selectare domino start");
+	glPrintf(0, HEIGHT - 80, sp, strlen(sp));
+	sprintf_s(sp, "%s", "< - Rotirea dominoului selectat spre stanga");
+	glPrintf(0, HEIGHT - 100, sp, strlen(sp));
+	sprintf_s(sp, "%s", "> - Rotirea dominoului selectat spre dreapta");
+	glPrintf(0, HEIGHT - 120, sp, strlen(sp));
+	sprintf_s(sp, "%s", "M - Schimba Mode: Darkmode / Lightmode");
+	glPrintf(0, HEIGHT - 140, sp, strlen(sp));
+
+	//mesaje de eroare
+	if (oldtime - message1_time < message_duration)
+	{
+		sprintf_s(sp, "%s", "Este nevoie de Reset (R) pentru a putea continua!");
+		glPrintfErr(WIDTH - 15 * strlen(sp) - 35, HEIGHT - 50, sp, strlen(sp));
+	}
+	if (oldtime - message2_time < message_duration)
+	{
+		sprintf_s(sp, "%s", "Pozitie domino invalida!");
+		glPrintfErr(WIDTH - 15 * strlen(sp) - 35, HEIGHT - 100, sp, strlen(sp));
+	}
+	if (oldtime - message3_time < message_duration)
+	{
+		sprintf_s(sp, "%s", "Nu exista niciun domino in acest loc!");
+		glPrintfErr(WIDTH - 15 * strlen(sp) - 35, HEIGHT - 150, sp, strlen(sp));
+	}
+	if (oldtime - message4_time < message_duration)
+	{
+		sprintf_s(sp, "%s", "Trebuie selectat un domino inainte de alegerea directiei de rotatie!");
+		glPrintfErr(WIDTH - 15 * strlen(sp) - 35, HEIGHT - 200, sp, strlen(sp));
+	}
+	if (oldtime - message5_time < message_duration)
+	{
+		sprintf_s(sp, "%s", "Asteptati sa fie toate dominourile pe masa pentru a incepe rotatia!");
+		glPrintfErr(WIDTH - 15 * strlen(sp) - 35, HEIGHT - 250, sp, strlen(sp));
+	}
+
 	// desen masa
 	glColor3f(0.65, 0.16, 0.16);
 	glLineWidth(5.0);
 	glBegin(GL_LINES);
 	glVertex2f(0.0, TABLE_HEIGHT);
-	glVertex2f(800.0, TABLE_HEIGHT);
-	glVertex2f(100.0, 0.0);
-	glVertex2f(100.0, TABLE_HEIGHT);
-	glVertex2f(700.0, 0.0);
-	glVertex2f(700.0, TABLE_HEIGHT);
+	glVertex2f(WIDTH, TABLE_HEIGHT);
+	glVertex2f(TABLE_GAP, 0.0);
+	glVertex2f(TABLE_GAP, TABLE_HEIGHT);
+	glVertex2f(WIDTH - TABLE_GAP, 0.0);
+	glVertex2f(WIDTH - TABLE_GAP, TABLE_HEIGHT);
 	glEnd();
 
 	glMatrixMode(GL_MODELVIEW);
@@ -187,9 +271,9 @@ void deseneaza(void)
 	for (int i = 0; i < nrdominos; i++)
 	{
 		glPushMatrix();
-		glTranslated(lista_drept[i].cord.x, lista_drept[i].cord.y, 0.0); // Vf, stivei: T
-		if (dir) glTranslated(LATIME, 0.0, 0.0); // Vf, stivei: T
-		if (dir) glRotated(lista_drept[i].ung, 0.0, 0.0, -1.0); // vf. stivei: T o R
+		glTranslated(lista_drept[i].cord.x, lista_drept[i].cord.y, 0.0);
+		if (dir) glTranslated(LATIME, 0.0, 0.0);
+		if (dir) glRotated(lista_drept[i].ung, 0.0, 0.0, -1.0);
 		else glRotated(lista_drept[i].ung, 0.0, 0.0, 1.0);
 		glScaled(LATIME, LUNGIME, 0.0);
 		if (dir) glTranslated(-1.0, 0.0, 0.0);
@@ -197,15 +281,10 @@ void deseneaza(void)
 		else if (i == selected) glColor3f(1.0, 0.5, 0.0);
 		else glColor3f(0.0, 1.0, 0.0);
 		glCallList(unit);
-		/*glVertex2f(lista_drept[i].x, lista_drept[i].y+lungime);
-		glVertex2f(lista_drept[i].x+latime, lista_drept[i].y+lungime);
-		glVertex2f(lista_drept[i].x+latime, lista_drept[i].y);
-		glVertex2f(lista_drept[i].x, lista_drept[i].y);
-		*/
 		glPopMatrix();
 	}
 
-	//punctele de rotatie dreapta jos
+	//punctele de rotatie
 	glColor3f(0.0, 0.0, 1.0);
 	glPointSize(5);
 	glEnable(GL_POINT_SMOOTH);
@@ -224,57 +303,71 @@ void deseneaza(void)
 	glutSwapBuffers();
 }
 
-/*
-void reshape(int w, int h)
-{
-	glViewport(0, 0, (GLsizei)w, (GLsizei)h);
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(-800.0, 800.0, -600.0, 600.0, -1.0, 1.0);
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-}
-
-void miscad(void)
-{
-	i = i + alpha;
-	if (i > 750.0)
-		alpha = -1.0;
-	else if (i < 0.0)
-		alpha = 1.0;
-	//j = j + ung;
-
-	glutPostRedisplay();
-}
-
-void miscas(void)
-{
-	i = i + alpha;
-	if (i < 0.0)
-		alpha = 1.0;
-	else if (i > 750.0)
-		alpha = -1.0;
-	//j = j + ung;
-
-	glutPostRedisplay();
-}
-*/
 void mouse(int button, int state, int x, int y)
 {
+	double X = x * WIDTH / glutGet(GLUT_WINDOW_WIDTH);
+	double Y = HEIGHT - y * HEIGHT / glutGet(GLUT_WINDOW_HEIGHT); // pt ca avem originea in stanga jos
 	switch (button) {
 	case GLUT_LEFT_BUTTON:
 		if (state == GLUT_DOWN)
 		{
+			if (started)
+			{
+				message1_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
+				break;
+			}
+			bool ok = 1;
+			if (Y < TABLE_HEIGHT)
+			{
+				message2_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
+				break;
+			}
+			for (int i = 0; i < nrdominos; i++)
+			{
+				if (abs(lista_drept[i].cord.x - X) < 2 * LATIME) ok = 0;
+			}
+			if (!ok)
+			{
+				message2_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
+				break;
+			}
 			nrdominos++;
-			realloc(lista_drept, nrdominos);
-			lista_drept[nrdominos - 1].cord.x = x;
-			lista_drept[nrdominos - 1].cord.y = TABLE_HEIGHT;
-			qsort(lista_drept, nrdominos, sizeof(domino), comp);
+			lista_aux = new domino[nrdominos];
+			for (int i = 0; i < nrdominos - 1; i++)
+			{
+				if (lista_drept[i].cord.x < X) lista_aux[i] = lista_drept[i];
+				if (ok && lista_drept[i].cord.x > X)
+				{
+					if (i <= selected) selected++;
+					lista_aux[i].cord.x = X;
+					lista_aux[i].cord.y = Y; // dominouri in aer
+					ok = 0;
+				}
+				if (!ok && lista_drept[i].cord.x > X) lista_aux[i + 1] = lista_drept[i];
+			}
+			if (ok)
+			{
+				lista_aux[nrdominos - 1].cord.x = X;
+				lista_aux[nrdominos - 1].cord.y = Y;
+			}
+			delete[] lista_drept;
+			lista_drept = new domino[nrdominos];
+			for (int i = 0; i < nrdominos; i++)
+			{
+				lista_drept[i] = lista_aux[i];
+			}
+			delete[] lista_aux;
 		}
 		break;
 	case GLUT_RIGHT_BUTTON:
 		if (state == GLUT_DOWN)
 		{
+			if (started)
+			{
+				message1_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
+				break;
+			}
+			bool ok = 0;
 			for (int i = 0; i < nrdominos; i++)
 			{
 				P1.x = lista_drept[i].cord.x;
@@ -286,14 +379,18 @@ void mouse(int button, int state, int x, int y)
 				P3.x = lista_drept[i].cord.x + LATIME;
 				P3.y = lista_drept[i].cord.y;
 
-				P4.x = x;
-				P4.y = 600 - y;
+				P4.x = X;
+				P4.y = Y;
 
 				if (suprapunere(lista_drept[i].cord, P1, P2, P3, P4))
 				{
 					selected = i;
-					cout << i << endl;
+					ok = 1;
 				}
+			}
+			if (!ok)
+			{
+				message3_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
 			}
 		}
 		break;
@@ -305,9 +402,30 @@ void keyboard(unsigned char key, int x, int y)
 {
 	switch (key) {
 	case 'r':
+		started = 0;
+		selected = -1;
 		nrdominos = 0;
 		delete[] lista_drept;
 		lista_drept = new domino[nrdominos];
+		break;
+	case 'f':
+	{
+		ifstream F("double_domino.txt");
+		F >> nrdominos;
+		started = 0;
+		selected = -1;
+		delete[] lista_drept;
+		lista_drept = new domino[nrdominos];
+		for (int i = 0; i < nrdominos; i++)
+		{
+			F >> lista_drept[i].cord.x;
+			lista_drept[i].cord.y = TABLE_HEIGHT;
+		}
+		F.close();
+		break;
+	}
+	case 'm':
+		darkmode = !darkmode;
 		break;
 	default:
 		break;
@@ -315,14 +433,55 @@ void keyboard(unsigned char key, int x, int y)
 }
 void special(int key, int x, int y)
 {
+	bool grounded = 1;
+	for (int i = 0; i < nrdominos; i++)
+	{
+		if (lista_drept[i].cord.y != TABLE_HEIGHT)
+		{
+			grounded = 0;
+			break;
+		}
+	}
 	switch (key) {
 	case GLUT_KEY_LEFT:
+		if (started)
+		{
+			message1_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
+			break;
+		}
+		if (selected == -1)
+		{
+			message4_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
+			break;
+		}
+		if (!grounded)
+		{
+			message5_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
+			break;
+		}
 		dir = 0;
 		lista_drept[selected].angr = 1;
+		started = 1;
 		break;
 	case GLUT_KEY_RIGHT:
+		if (started)
+		{
+			message1_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
+			break;
+		}
+		if (selected == -1)
+		{
+			message4_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
+			break;
+		}
+		if (!grounded)
+		{
+			message5_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0;
+			break;
+		}
 		dir = 1;
 		lista_drept[selected].angr = 1;
+		started = 1;
 		break;
 	default:
 		break;
@@ -333,43 +492,21 @@ void special(int key, int x, int y)
 void main(int argc, char** argv)
 {
 	lista_drept = new domino[nrdominos];
-	
-	
-	lista_drept[0].cord.x = 200;
-	lista_drept[0].cord.y = 200;
-	lista_drept[1].cord.x = 300.3;
-	lista_drept[1].cord.y = 200;
-	lista_drept[2].cord.x = 400.6;
-	lista_drept[2].cord.y = 200;
-	lista_drept[3].cord.x = 500.9;
-	lista_drept[3].cord.y = 200;
-	
-	/*
-	lista_drept[0].cord.x = 200;
-	lista_drept[0].cord.y = 200;
-	lista_drept[1].cord.x = 210;
-	lista_drept[1].cord.y = 200;
-	lista_drept[2].cord.x = 250;
-	lista_drept[2].cord.y = 200;
-	lista_drept[3].cord.x = 300;
-	lista_drept[3].cord.y = 200;
 
-	lista_drept[nrdominos - 1].angr = 1;
-	dir = 0;
-	*/
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-	glutInitWindowSize(800, 600);
-	glutInitWindowPosition(100, 100);
+	glutInitWindowSize(WIDTH, HEIGHT);
+	glutInitWindowPosition(0, 0);
 	glutCreateWindow("Domino2D");
 	init();
 	glutDisplayFunc(deseneaza);
 	glutIdleFunc(update);
-	//glutReshapeFunc(reshape);
 	glutMouseFunc(mouse);
 	glutKeyboardFunc(keyboard);
 	glutSpecialFunc(special);
 	glutMainLoop();
+
+	delete[] lista_drept;
 }
 
 
