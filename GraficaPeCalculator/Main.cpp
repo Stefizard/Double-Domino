@@ -53,20 +53,24 @@ bool started = 0;
 bool dir = 1; //dreapta daca e 1, stanga daca e 0
 int selected = -1; //-1 cand nu e selectat, pozitia cand e selectat
 
-void glPrintf(int x, int y, char* sir, int lungime) {
+void glPrintf(int x, int y, char* sir, int lungime)
+{
 	if (darkmode) glColor3f(1.0, 1.0, 1.0);
 	else glColor3f(0.0, 0.0, 0.0);
-	for (int i = 0; i < lungime; i++) {
+	for (int i = 0; i < lungime; i++)
+	{
 		glRasterPos2i(10 + x + i * 10, y - 20);
-		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, sir[i]);
+		glutBitmapCharacter(GLUT_BITMAP_8_BY_13, sir[i]);
 	}
 }
 
-void glPrintfErr(int x, int y, char* sir, int lungime) {
+void glPrintfErr(int x, int y, char* sir, int lungime)
+{
 	glColor3f(1.0, 0.0, 0.0);
-	for (int i = 0; i < lungime; i++) {
+	for (int i = 0; i < lungime; i++)
+	{
 		glRasterPos2i(x + i * 15, y);
-		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, sir[i]);
+		glutBitmapCharacter(GLUT_BITMAP_9_BY_15, sir[i]);
 	}
 }
 
@@ -402,6 +406,7 @@ void keyboard(unsigned char key, int x, int y)
 {
 	switch (key) {
 	case 'r':
+	case 'R':
 		started = 0;
 		selected = -1;
 		nrdominos = 0;
@@ -409,6 +414,7 @@ void keyboard(unsigned char key, int x, int y)
 		lista_drept = new domino[nrdominos];
 		break;
 	case 'f':
+	case 'F':
 	{
 		ifstream F("double_domino.txt");
 		F >> nrdominos;
@@ -425,6 +431,7 @@ void keyboard(unsigned char key, int x, int y)
 		break;
 	}
 	case 'm':
+	case 'M':
 		darkmode = !darkmode;
 		break;
 	default:
